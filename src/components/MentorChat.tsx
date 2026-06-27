@@ -147,6 +147,7 @@ export const MentorChat: React.FC = () => {
     setIsLoading(true);
     setStreamingText('');
 
+    let accumulatedText = '';
     try {
       const context = {
         career: roadmap ? roadmap.career : 'Software Engineering',
@@ -163,6 +164,7 @@ export const MentorChat: React.FC = () => {
         context,
         '', 
         (token) => {
+          accumulatedText += token;
           setStreamingText((prev) => prev + token);
         }
       );
@@ -172,7 +174,7 @@ export const MentorChat: React.FC = () => {
         {
           id: Math.random().toString(),
           sender: 'mentor',
-          text: streamingText || 'Done.',
+          text: accumulatedText || 'Done.',
           timestamp: new Date(),
         },
       ]);
@@ -183,21 +185,6 @@ export const MentorChat: React.FC = () => {
       setIsLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (!isLoading && streamingText) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Math.random().toString(),
-          sender: 'mentor',
-          text: streamingText,
-          timestamp: new Date(),
-        },
-      ]);
-      setStreamingText('');
-    }
-  }, [isLoading]);
 
   const presetQuestions = [
     { text: "Today's plan", query: "Give me today's plan based on my roadmap." },
