@@ -59,24 +59,87 @@ export const Planners: React.FC = () => {
     // Distribute milestones across weeks
     const milestoneIdx = Math.min(
       roadmap.milestones.length - 1, 
-      Math.floor((weekNum - 1) / 2)
+      Math.floor((weekNum - 1) / Math.max(1, Math.ceil(12 / roadmap.milestones.length)))
     );
     const milestone = roadmap.milestones[milestoneIdx];
+
+    // 12 distinct weekly themes to guarantee varied layouts
+    const weeklySubThemes: Record<number, { title: string; topics: string[]; practice: string[] }> = {
+      1: {
+        title: `Introduction to ${milestone.title}`,
+        topics: [`Core architecture of ${milestone.skills[0] || 'Fundamentals'}`, "Setting up local sandbox folder structures", "Reviewing roadmap prerequisites"],
+        practice: ["Configure local environment values", "Write a 10-line syntax test module"]
+      },
+      2: {
+        title: `Variables & Types in ${milestone.title}`,
+        topics: ["Data types and memory bounds", "Reference vs value state structures", "Operators and logical precedence"],
+        practice: ["Solve 3 simple storage conversion tasks", "Build custom type interface structures"]
+      },
+      3: {
+        title: `Control Structures & Loops`,
+        topics: ["Conditional switch case logic", "Iterative loops and execution constraints", "Jump and break commands"],
+        practice: ["Optimize nested loops execution speeds", "Write a mock switch router handler"]
+      },
+      4: {
+        title: `Advanced Functions & Scope`,
+        topics: ["Lexical scoping rules & variables inheritance", "Callback delegators & arrow mechanics", "Error try-catch boundary limits"],
+        practice: ["Write a custom error catcher logger", "Create recursive algorithm templates"]
+      },
+      5: {
+        title: `Data Collections & Mappings`,
+        topics: ["Arrays and key-value dictionary formats", "Stack and Queue data structures", "Memory garbage collection optimizations"],
+        practice: ["Implement a custom generic Stack handler", "Sort collections of dict entities"]
+      },
+      6: {
+        title: `Modular Clean Architecture`,
+        topics: ["Decoupling principles & separation of concerns", "Exporting modular classes & interfaces", "Single Responsibility paradigm"],
+        practice: ["Isolate UI view layer from data managers", "Configure import relative path overrides"]
+      },
+      7: {
+        title: `Asynchronous Concurrency`,
+        topics: ["Promises and batch parallel operations", "Async/Await thread synchronization methods", "API query retry and backoff systems"],
+        practice: ["Query data from 3 API sources concurrently", "Write a fetch timeout recovery event handler"]
+      },
+      8: {
+        title: `State Management Frameworks`,
+        topics: ["Global state hooks and context providers", "Reducer patterns and dispatch actions", "Persisting state key values locally"],
+        practice: ["Build a global session context state tracker", "Store user details on storage events"]
+      },
+      9: {
+        title: `Premium UI Component Styling`,
+        topics: ["Utility styling structures and design systems", "Dynamic dark mode class switches", "Glassmorphic overlay implementations"],
+        practice: ["Create a responsive navbar collapsible container", "Design a custom glowing spotlight effect"]
+      },
+      10: {
+        title: `Debugging & Unit Testing`,
+        topics: ["Browser profile memory leak inspects", "Writing JEST / Vitest unit test files", "Tracking network telemetry payloads"],
+        practice: ["Write 5 unit test cases for core classes", "Measure script rendering loop delays"]
+      },
+      11: {
+        title: `Production Deployment Setup`,
+        topics: ["Build compilation bundle optimizations", "Hosting server project configurations", "CI/CD build pipeline webhooks"],
+        practice: ["Deploy project build files to a cloud staging host", "Check final package size bounds"]
+      },
+      12: {
+        title: `Mock Interviews & Portfolio Display`,
+        topics: ["Technical mock interview questions", "ATS resume description tuning", "Publishing repositories on GitHub"],
+        practice: ["Write 3 resume accomplishments", "Document readme files on repository repos"]
+      }
+    };
+
+    const theme = weeklySubThemes[weekNum] || {
+      title: `Week ${weekNum}: Mastering ${milestone.skills[0] || 'Fundamentals'}`,
+      topics: [`Theoretical core of ${milestone.skills[0] || 'this module'}`, "Syntactical structures and layouts", "API integrations"],
+      practice: [`Resolve algorithms matching ${milestone.skills[0] || 'skills'}`, "Build local test modules"]
+    };
     
     return {
-      title: `Week ${weekNum}: Mastering ${milestone.skills[0] || 'Fundamentals'}`,
+      title: `Week ${weekNum}: ${theme.title}`,
       skills: milestone.skills.slice(0, 3),
       hoursRequired: 15,
-      topics: [
-        `Theoretical core of ${milestone.skills[0] || 'this module'}`,
-        `Syntactical layouts and standard design structures`,
-        `API connections and schema formatting`
-      ],
-      practice: [
-        `Resolve 3 algorithmic challenges relating to ${milestone.skills[0] || 'core concepts'}`,
-        `Build local test files demonstrating methods`
-      ],
-      miniProject: milestone.projects[0]?.title || "Atomic Sandbox Module",
+      topics: theme.topics,
+      practice: theme.practice,
+      miniProject: milestone.projects[0]?.title || "Sandbox Module",
       revision: `Revise common errors: ${milestone.commonMistakes[0] || 'code formatting'}`
     };
   };
