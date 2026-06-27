@@ -13,13 +13,15 @@ import {
   Video,
   DollarSign,
   User,
-  BrainCircuit
+  BrainCircuit,
+  Bot
 } from 'lucide-react';
 import { useRoadmap } from '../context/RoadmapContext';
 
 const menuItems = [
   { path: '/', label: 'Explore', icon: Compass },
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/chat', label: 'AI Copilot', icon: Bot },
   { path: '/roadmap', label: 'Interactive Roadmap', icon: Map, requiresRoadmap: true },
   { path: '/skills', label: 'Skills Tree', icon: Network, requiresRoadmap: true },
   { path: '/planners', label: 'Study Planner', icon: Calendar, requiresRoadmap: true },

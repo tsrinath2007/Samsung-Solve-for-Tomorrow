@@ -3,7 +3,6 @@ import { RoadmapProvider } from './context/RoadmapContext';
 import { ParticleBackground } from './components/ParticleBackground';
 import { Sidebar } from './components/Sidebar';
 import { MobileNavbar } from './components/MobileNavbar';
-import { MentorChat } from './components/MentorChat';
 import { AuthGate } from './components/AuthGate';
 import { CommandPalette } from './components/CommandPalette';
 
@@ -19,6 +18,7 @@ import { Analyzer } from './pages/Analyzer';
 import { Interview } from './pages/Interview';
 import { Salary } from './pages/Salary';
 import { Profile } from './pages/Profile';
+import { Chat } from './pages/Chat';
 
 function App() {
   return (
@@ -51,11 +51,9 @@ function App() {
                 <Route path="/interview" element={<Interview />} />
                 <Route path="/salary" element={<Salary />} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/chat" element={<Chat />} />
               </Routes>
             </main>
-
-            {/* Floating AI Mentor Chat Panel */}
-            <MentorChat />
             
           </div>
         </AuthGate>
