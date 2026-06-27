@@ -34,13 +34,14 @@ export const streamNovaAIResponse = async (
 
   When answering, refer directly to their progress, resume metrics, or completed projects to give highly personalized, context-aware advice! Keep answers concise, and format code blocks, lists, or tables using Markdown when appropriate.`;
 
-  if (apiKey && apiKey.trim() !== '') {
+  const activeKey = apiKey || (import.meta.env.VITE_OPENAI_API_KEY as string);
+  if (activeKey && activeKey.trim() !== '') {
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': `Bearer ${activeKey}`,
         },
         body: JSON.stringify({
           model: 'gpt-4o-mini',
@@ -161,13 +162,14 @@ How can I help you write code, design database schemas, or practice interview qu
 // ROADMAP DATA GENERATOR
 // ----------------------------------------------------
 export const generateAIRoadmap = async (career: string, apiKey?: string): Promise<RoadmapData> => {
-  if (apiKey && apiKey.trim() !== '') {
+  const activeKey = apiKey || (import.meta.env.VITE_OPENAI_API_KEY as string);
+  if (activeKey && activeKey.trim() !== '') {
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': `Bearer ${activeKey}`,
         },
         body: JSON.stringify({
           model: 'gpt-4o-mini',
