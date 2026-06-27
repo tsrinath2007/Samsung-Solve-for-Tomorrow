@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Compass, LayoutDashboard, Map, Calendar, Terminal, Award, FileCheck2, Video, DollarSign, User, Sparkles, LogOut, Bot } from 'lucide-react';
+import { Search, Compass, LayoutDashboard, Map, Calendar, Terminal, Award, FileCheck2, Video, DollarSign, User, Sparkles, LogOut } from 'lucide-react';
 import { useRoadmap } from '../context/RoadmapContext';
 
 export const CommandPalette: React.FC = () => {
@@ -40,7 +40,6 @@ export const CommandPalette: React.FC = () => {
   const navigationItems = [
     { label: 'Navigate to Explore', path: '/', icon: Compass, action: () => navigate('/') },
     { label: 'Navigate to Dashboard', path: '/dashboard', icon: LayoutDashboard, action: () => navigate('/dashboard') },
-    { label: 'Navigate to AI Copilot', path: '/chat', icon: Bot, action: () => navigate('/chat') },
     { label: 'Navigate to Roadmap', path: '/roadmap', icon: Map, action: () => navigate('/roadmap') },
     { label: 'Navigate to Planners', path: '/planners', icon: Calendar, action: () => navigate('/planners') },
     { label: 'Navigate to Project Lab', path: '/projects', icon: Terminal, action: () => navigate('/projects') },

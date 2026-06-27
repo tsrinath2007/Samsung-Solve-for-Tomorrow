@@ -14,8 +14,7 @@ import {
   Video,
   DollarSign,
   User,
-  BrainCircuit,
-  Bot
+  BrainCircuit
 } from 'lucide-react';
 import { useRoadmap } from '../context/RoadmapContext';
 
@@ -34,7 +33,6 @@ export const MobileNavbar: React.FC = () => {
   ];
 
   const secondaryMenu = [
-    { path: '/chat', label: 'AI Copilot', icon: Bot },
     { path: '/skills', label: 'Skills Tree', icon: Compass, requiresRoadmap: true }, // We'll map Network icon below
     { path: '/projects', label: 'Project Lab', icon: Terminal, requiresRoadmap: true },
     { path: '/certifications', label: 'Certifications', icon: Award, requiresRoadmap: true },

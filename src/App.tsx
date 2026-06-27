@@ -5,6 +5,7 @@ import { Sidebar } from './components/Sidebar';
 import { MobileNavbar } from './components/MobileNavbar';
 import { AuthGate } from './components/AuthGate';
 import { CommandPalette } from './components/CommandPalette';
+import { RightChatPanel } from './components/RightChatPanel';
 
 // Pages
 import { Landing } from './pages/Landing';
@@ -18,7 +19,6 @@ import { Analyzer } from './pages/Analyzer';
 import { Interview } from './pages/Interview';
 import { Salary } from './pages/Salary';
 import { Profile } from './pages/Profile';
-import { Chat } from './pages/Chat';
 
 function App() {
   return (
@@ -37,23 +37,27 @@ function App() {
             <Sidebar />
             <MobileNavbar />
 
-            {/* Main Content Area */}
-            <main className="flex-1 lg:pl-64 min-h-screen flex flex-col items-center relative z-10 overflow-x-hidden">
-              <Routes>
-                <Route path="/" element={<Landing />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/roadmap" element={<Roadmap />} />
-                <Route path="/skills" element={<SkillsTree />} />
-                <Route path="/planners" element={<Planners />} />
-                <Route path="/projects" element={<Projects />} />
-                <Route path="/certifications" element={<Certifications />} />
-                <Route path="/analyzer" element={<Analyzer />} />
-                <Route path="/interview" element={<Interview />} />
-                <Route path="/salary" element={<Salary />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/chat" element={<Chat />} />
-              </Routes>
-            </main>
+            {/* Main Flex Row containing Content Area & Collapsible AI Panel */}
+            <div className="flex-1 flex flex-row relative min-h-screen">
+              <main className="flex-1 lg:pl-64 min-h-screen flex flex-col items-center relative z-10 overflow-x-hidden">
+                <Routes>
+                  <Route path="/" element={<Landing />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/roadmap" element={<Roadmap />} />
+                  <Route path="/skills" element={<SkillsTree />} />
+                  <Route path="/planners" element={<Planners />} />
+                  <Route path="/projects" element={<Projects />} />
+                  <Route path="/certifications" element={<Certifications />} />
+                  <Route path="/analyzer" element={<Analyzer />} />
+                  <Route path="/interview" element={<Interview />} />
+                  <Route path="/salary" element={<Salary />} />
+                  <Route path="/profile" element={<Profile />} />
+                </Routes>
+              </main>
+
+              {/* Docked Collapsible Right Chat Panel */}
+              <RightChatPanel />
+            </div>
             
           </div>
         </AuthGate>
