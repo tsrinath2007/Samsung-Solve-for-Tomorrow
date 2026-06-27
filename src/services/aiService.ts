@@ -61,14 +61,16 @@ export const streamNovaAIResponse = async (
       const reader = response.body?.getReader();
       const decoder = new TextDecoder('utf-8');
       let completeText = '';
+      let buffer = '';
 
       if (reader) {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
 
           for (const line of lines) {
             const cleanedLine = line.trim();
@@ -82,7 +84,7 @@ export const streamNovaAIResponse = async (
                   if (onToken) onToken(content);
                 }
               } catch (e) {
-                // skip malformed chunks
+                // skip malformed/incomplete JSON chunks
               }
             }
           }
