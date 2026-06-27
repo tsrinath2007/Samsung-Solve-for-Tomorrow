@@ -557,6 +557,19 @@ export const RoadmapProvider: React.FC<{ children: React.ReactNode }> = ({ child
       updateProfileXP(250);
       triggerAchievement('first_step');
 
+      // Send email notification to user profile email via Resend
+      const completedMilestone = roadmap.milestones.find(m => m.id === nodeId);
+      if (userProfile.email && completedMilestone) {
+        import('../services/emailService').then(({ sendMilestoneEmail }) => {
+          sendMilestoneEmail(
+            userProfile.email!,
+            userProfile.name,
+            roadmap.career,
+            completedMilestone.title
+          );
+        });
+      }
+
       // Check all complete
       const totalSteps = roadmap.milestones.map(m => m.id);
       const isFinished = totalSteps.every(id => id === nodeId || completedNodes.includes(id));
