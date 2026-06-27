@@ -1,27 +1,23 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
 import { 
   User, 
   Award, 
-  Key, 
-  Database, 
   Check, 
   Trash2, 
   FolderHeart,
-  ChevronRight
+  ChevronRight,
+  LogOut
 } from 'lucide-react';
 import { useRoadmap } from '../context/RoadmapContext';
 
 export const Profile: React.FC = () => {
   const { 
     userProfile, 
-    settings, 
     savedRoadmaps, 
     achievements,
     roadmap,
     updateProfile, 
-    updateSettings,
     loadSavedRoadmap,
     deleteSavedRoadmap
   } = useRoadmap();
@@ -29,11 +25,6 @@ export const Profile: React.FC = () => {
 
   // Local Form States
   const [name, setName] = useState(userProfile.name);
-  const [openAiKey, setOpenAiKey] = useState(settings.openAiKey);
-  const [supabaseUrl, setSupabaseUrl] = useState(settings.supabaseUrl);
-  const [supabaseAnonKey, setSupabaseAnonKey] = useState(settings.supabaseAnonKey);
-  const [mockMode, setMockMode] = useState(settings.mockMode);
-  
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   const handleSaveSettings = (e: React.FormEvent) => {
@@ -42,17 +33,17 @@ export const Profile: React.FC = () => {
     
     // Update Context
     updateProfile({ name });
-    updateSettings({
-      openAiKey,
-      supabaseUrl,
-      supabaseAnonKey,
-      mockMode
-    });
 
     setTimeout(() => {
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     }, 1000);
+  };
+
+  const handleLogoutClick = () => {
+    if ((window as any).pathwiseLogout) {
+      (window as any).pathwiseLogout();
+    }
   };
 
   const unlockedAchievementsCount = achievements.filter(a => a.unlocked).length;
@@ -65,7 +56,7 @@ export const Profile: React.FC = () => {
           <User className="w-8 h-8 text-neonPurple" /> Mentor Settings
         </h1>
         <p className="text-xs text-slate-500">
-          Configure profile structures, API keys, and load saved roadmaps.
+          Configure profile details and load saved roadmaps.
         </p>
       </div>
 
@@ -107,95 +98,38 @@ export const Profile: React.FC = () => {
               </div>
             </div>
 
-            {/* API Configs */}
-            <div className="border-t border-slate-900 pt-6">
-              <h3 className="font-heading font-bold text-sm text-slate-200 mb-4 flex items-center gap-2">
-                <Key className="w-4 h-4 text-neonPurple" /> AI Integration Keys
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between items-center mb-1.5">
-                    <label className="block text-[9px] text-slate-500 uppercase tracking-widest font-mono font-bold">
-                      OpenAI API Key
-                    </label>
-                    <span className="text-[9px] text-slate-500 font-mono">Optional fallback simulation active</span>
-                  </div>
-                  <input
-                    type="password"
-                    placeholder="sk-..."
-                    value={openAiKey}
-                    onChange={(e) => setOpenAiKey(e.target.value)}
-                    className="w-full glass-input px-3.5 py-2.5 rounded-xl text-xs font-mono"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between p-3.5 bg-slate-950/40 border border-slate-905 rounded-xl">
-                  <div>
-                    <span className="text-xs font-bold text-slate-200 block">Offline Mock Mode</span>
-                    <span className="text-[10px] text-slate-500 block leading-tight">
-                      Use local procedural compiler instead of live API billing calls.
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setMockMode(!mockMode)}
-                    className={`w-11 h-6 rounded-full p-1 transition-colors duration-200 focus:outline-none cursor-pointer ${
-                      mockMode ? 'bg-neonPurple' : 'bg-slate-900'
-                    }`}
-                  >
-                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${
-                      mockMode ? 'translate-x-5' : 'translate-x-0'
-                    }`} />
-                  </button>
+            {/* Email Profile Indicator */}
+            {userProfile.email && (
+              <div className="border-t border-slate-900 pt-6 space-y-1">
+                <label className="block text-[9px] text-slate-500 uppercase tracking-widest font-mono font-bold">
+                  Registered Email (OAuth)
+                </label>
+                <div className="text-xs text-slate-400 font-mono py-1.5">
+                  {userProfile.email}
                 </div>
               </div>
-            </div>
-
-            {/* Supabase Config */}
-            <div className="border-t border-slate-900 pt-6">
-              <h3 className="font-heading font-bold text-sm text-slate-200 mb-4 flex items-center gap-2">
-                <Database className="w-4 h-4 text-accentCyan" /> Supabase Database (Cloud Sync)
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[9px] text-slate-500 uppercase tracking-widest font-mono font-bold mb-1.5">
-                    Supabase URL
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="https://xyz.supabase.co"
-                    value={supabaseUrl}
-                    onChange={(e) => setSupabaseUrl(e.target.value)}
-                    className="w-full glass-input px-3.5 py-2.5 rounded-xl text-xs font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[9px] text-slate-500 uppercase tracking-widest font-mono font-bold mb-1.5">
-                    Anon API Key
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="eyJhbGciOi..."
-                    value={supabaseAnonKey}
-                    onChange={(e) => setSupabaseAnonKey(e.target.value)}
-                    className="w-full glass-input px-3.5 py-2.5 rounded-xl text-xs font-mono"
-                  />
-                </div>
-              </div>
-            </div>
+            )}
 
             {/* Action Bar */}
-            <div className="border-t border-slate-900 pt-6 flex justify-end">
+            <div className="border-t border-slate-900 pt-6 flex justify-between items-center">
+              <button
+                type="button"
+                onClick={handleLogoutClick}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-red-500 hover:text-red-400 text-xs font-heading font-bold uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" /> Sign Out
+              </button>
+
               <button
                 type="submit"
                 disabled={saveStatus === 'saving'}
-                className="px-6 py-3 rounded-xl bg-neonPurple text-white text-xs font-heading font-bold uppercase tracking-wider hover:bg-neonPurple/90 transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                className="px-6 py-3 rounded-xl bg-neonPurple text-white text-xs font-heading font-bold uppercase tracking-wider hover:bg-neonPurple/90 transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer animate-pulse-glow"
               >
                 {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? (
                   <>
-                    <Check className="w-4 h-4" /> Configs Saved
+                    <Check className="w-4 h-4" /> Changes Saved
                   </>
-                ) : 'Save Configuration'}
+                ) : 'Save Profile'}
               </button>
             </div>
 
