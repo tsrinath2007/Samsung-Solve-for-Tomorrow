@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
+import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 
 export interface Milestone {
   id: string;
@@ -86,6 +87,8 @@ export interface UserProfile {
   goal: string;
   xp: number;
   level: number;
+  avatar?: string;
+  email?: string;
 }
 
 export interface AppSettings {
@@ -132,6 +135,8 @@ const defaultProfile: UserProfile = {
   goal: '',
   xp: 0,
   level: 1,
+  avatar: '',
+  email: '',
 };
 
 const defaultSettings: AppSettings = {
@@ -157,7 +162,7 @@ export const RoadmapProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [savedRoadmaps, setSavedRoadmaps] = useState<{ goal: string; date: string; progress: number; roadmap: RoadmapData }[]>([]);
 
-  // Load state from LocalStorage on mount
+  // Load state from LocalStorage on mount (fallback defaults)
   useEffect(() => {
     const localGoal = localStorage.getItem('pw_careerGoal');
     const localRoadmap = localStorage.getItem('pw_roadmap');
@@ -184,12 +189,148 @@ export const RoadmapProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (localSaved) setSavedRoadmaps(JSON.parse(localSaved));
   }, []);
 
+  // Supabase Auth and Table synchronizer
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
+    const syncUserData = async () => {
+      const { data: { session } } = await supabase!.auth.getSession();
+      if (!session || !session.user) return;
+
+      const user = session.user;
+      
+      // 1. Fetch Profile or Create new Public profile
+      const { data: dbProfile, error: getErr } = await supabase!
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (getErr || !dbProfile) {
+        // Insert new profile
+        const newProfile = {
+          id: user.id,
+          email: user.email || '',
+          name: user.user_metadata.full_name || 'Career Pathfinder',
+          avatar: user.user_metadata.avatar_url || '',
+          career_goal: '',
+          xp: 0,
+          level: 1
+        };
+        await supabase!.from('profiles').insert(newProfile);
+        setUserProfile({
+          name: newProfile.name,
+          email: newProfile.email,
+          avatar: newProfile.avatar,
+          goal: '',
+          xp: 0,
+          level: 1
+        });
+      } else {
+        // Hydrate from DB
+        setUserProfile({
+          name: dbProfile.name || 'Career Pathfinder',
+          email: dbProfile.email || '',
+          avatar: dbProfile.avatar || '',
+          goal: dbProfile.career_goal || '',
+          xp: dbProfile.xp || 0,
+          level: dbProfile.level || 1
+        });
+      }
+
+      // 2. Fetch Roadmaps list
+      const { data: dbRoadmaps } = await supabase!
+        .from('roadmaps')
+        .select('*');
+        
+      if (dbRoadmaps && dbRoadmaps.length > 0) {
+        // Hydrate active and saved lists
+        const active = dbRoadmaps[0];
+        setCareerGoal(active.career);
+        setRoadmap({
+          career: active.career,
+          description: active.description || '',
+          difficulty: active.difficulty || 'Intermediate',
+          expectedSalary: {
+            entry: active.entry_salary || '$60,000',
+            mid: active.mid_salary || '$95,000',
+            senior: active.senior_salary || '$140,000',
+            average: active.average_salary || '$98,000'
+          },
+          duration: active.duration || '6 Months',
+          jobGrowth: active.job_growth || '+18%',
+          industryOutlook: active.industry_outlook || '',
+          milestones: [],
+          interviewTopics: [],
+          resumeTips: active.resume_tips || [],
+          portfolioSuggestions: active.portfolio_suggestions || [],
+          keywords: active.keywords || []
+        });
+
+        // Pull steps
+        const { data: dbSteps } = await supabase!
+          .from('roadmap_steps')
+          .select('*')
+          .eq('roadmap_id', active.id)
+          .order('step_index');
+
+        if (dbSteps) {
+          setRoadmap(prev => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              milestones: dbSteps.map((s: any) => ({
+                id: s.id,
+                title: s.title,
+                description: s.description || '',
+                duration: s.duration || '',
+                skills: s.skills || [],
+                projects: [],
+                tasks: s.tasks || [],
+                commonMistakes: s.common_mistakes || [],
+                outcome: s.outcome || '',
+                resources: []
+              }))
+            };
+          });
+        }
+      }
+
+      // 3. Fetch Completed Milestones
+      const { data: dbCompletions } = await supabase!
+        .from('progress')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (dbCompletions) {
+        setCompletedNodes(dbCompletions.map((c: any) => c.step_id));
+      }
+
+      // 4. Fetch achievements
+      const { data: dbAchievements } = await supabase!
+        .from('achievements')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (dbAchievements) {
+        setAchievements(prev => 
+          prev.map(ach => ({
+            ...ach,
+            unlocked: dbAchievements.some((a: any) => a.id === ach.id)
+          }))
+        );
+      }
+    };
+
+    syncUserData();
+  }, [isSupabaseConfigured]);
+
   // Save to LocalStorage helpers
   const saveState = (key: string, val: any) => {
     localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val));
   };
 
-  const updateProfileXP = (xpGained: number) => {
+  const updateProfileXP = async (xpGained: number) => {
     setUserProfile((prev) => {
       const newXp = prev.xp + xpGained;
       const nextLevelXp = prev.level * 1000;
@@ -205,11 +346,25 @@ export const RoadmapProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
       const updated = { ...prev, xp: newXp, level: newLevel };
       saveState('pw_profile', updated);
+
+      // Cloud Sync
+      if (isSupabaseConfigured) {
+        supabase!.auth.getSession().then(({ data: { session } }: any) => {
+          if (session?.user) {
+            supabase!
+              .from('profiles')
+              .update({ xp: newXp, level: newLevel })
+              .eq('id', session.user.id)
+              .then();
+          }
+        });
+      }
+
       return updated;
     });
   };
 
-  const triggerAchievement = (id: string) => {
+  const triggerAchievement = async (id: string) => {
     setAchievements((prev) => {
       const updated = prev.map((ach) => {
         if (ach.id === id && !ach.unlocked) {
@@ -219,6 +374,19 @@ export const RoadmapProvider: React.FC<{ children: React.ReactNode }> = ({ child
             origin: { y: 0.8 },
             colors: ['#10B981', '#38BDF8', '#F59E0B'],
           });
+
+          // Cloud Sync
+          if (isSupabaseConfigured) {
+            supabase!.auth.getSession().then(({ data: { session } }: any) => {
+              if (session?.user) {
+                supabase!
+                  .from('achievements')
+                  .insert({ id, user_id: session.user.id })
+                  .then();
+              }
+            });
+          }
+
           return { ...ach, unlocked: true, unlockedAt: new Date().toISOString() };
         }
         return ach;
@@ -234,14 +402,14 @@ export const RoadmapProvider: React.FC<{ children: React.ReactNode }> = ({ child
     saveState('pw_careerGoal', goal);
 
     try {
-      // Import dynamic service to avoid circular references
+      // Dynamic import
       const { generateAIRoadmap } = await import('../services/aiService');
       const response = await generateAIRoadmap(goal, settings.openAiKey);
       
       setRoadmap(response);
       saveState('pw_roadmap', response);
 
-      // Save to saved list
+      // Save to lists
       setSavedRoadmaps((prev) => {
         const filtered = prev.filter((r) => r.goal.toLowerCase() !== goal.toLowerCase());
         const updated = [
@@ -252,7 +420,7 @@ export const RoadmapProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return updated;
       });
 
-      // Reset milestones completion for new goal
+      // Clear completions
       setCompletedNodes([]);
       saveState('pw_completedNodes', []);
       
@@ -261,6 +429,57 @@ export const RoadmapProvider: React.FC<{ children: React.ReactNode }> = ({ child
         saveState('pw_profile', updated);
         return updated;
       });
+
+      // Cloud Sync Roadmap
+      if (isSupabaseConfigured) {
+        const { data: { session } } = await supabase!.auth.getSession();
+        if (session?.user) {
+          // Insert Roadmap
+          const { data: dbRoadmap } = await supabase!
+            .from('roadmaps')
+            .insert({
+              user_id: session.user.id,
+              career: response.career,
+              description: response.description,
+              difficulty: response.difficulty,
+              entry_salary: response.expectedSalary.entry,
+              mid_salary: response.expectedSalary.mid,
+              senior_salary: response.expectedSalary.senior,
+              average_salary: response.expectedSalary.average,
+              duration: response.duration,
+              job_growth: response.jobGrowth,
+              industry_outlook: response.industryOutlook,
+              resume_tips: response.resumeTips,
+              portfolio_suggestions: response.portfolioSuggestions,
+              keywords: response.keywords
+            })
+            .select()
+            .single();
+
+          if (dbRoadmap) {
+            // Insert Roadmap Steps
+            const stepsToInsert = response.milestones.map((m, idx) => ({
+              id: m.id,
+              roadmap_id: dbRoadmap.id,
+              title: m.title,
+              description: m.description,
+              duration: m.duration,
+              skills: m.skills,
+              tasks: m.tasks,
+              common_mistakes: m.commonMistakes,
+              outcome: m.outcome,
+              step_index: idx
+            }));
+            await supabase!.from('roadmap_steps').insert(stepsToInsert);
+          }
+
+          // Update profile target
+          await supabase!
+            .from('profiles')
+            .update({ career_goal: response.career })
+            .eq('id', session.user.id);
+        }
+      }
 
       setIsGenerating(false);
       return true;
@@ -271,7 +490,7 @@ export const RoadmapProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  const toggleNodeCompletion = (nodeId: string) => {
+  const toggleNodeCompletion = async (nodeId: string) => {
     if (!roadmap) return;
     
     let isCompleted = false;
@@ -286,7 +505,7 @@ export const RoadmapProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
       saveState('pw_completedNodes', updated);
 
-      // Update saved roadmaps progress
+      // Update saved lists
       setSavedRoadmaps((prevSaved) => {
         const updatedSaved = prevSaved.map((sr) => {
           if (sr.goal.toLowerCase() === roadmap.career.toLowerCase()) {
@@ -299,21 +518,53 @@ export const RoadmapProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return updatedSaved;
       });
 
+      // Cloud Sync completed node
+      if (isSupabaseConfigured) {
+        supabase!.auth.getSession().then(({ data: { session } }: any) => {
+          if (session?.user) {
+            if (isCompleted) {
+              // Get active roadmap uuid from db first
+              supabase!
+                .from('roadmaps')
+                .select('id')
+                .eq('user_id', session.user.id)
+                .eq('career', roadmap.career)
+                .single()
+                .then(({ data: dbRd }: any) => {
+                  if (dbRd) {
+                    supabase!
+                      .from('progress')
+                      .insert({ user_id: session.user.id, roadmap_id: dbRd.id, step_id: nodeId })
+                      .then();
+                  }
+                });
+            } else {
+              supabase!
+                .from('progress')
+                .delete()
+                .eq('user_id', session.user.id)
+                .eq('step_id', nodeId)
+                .then();
+            }
+          }
+        });
+      }
+
       return updated;
     });
 
     if (isCompleted) {
-      updateProfileXP(250); // 250 XP per step completed
+      updateProfileXP(250);
       triggerAchievement('first_step');
 
-      // Check if all steps completed
+      // Check all complete
       const totalSteps = roadmap.milestones.map(m => m.id);
       const isFinished = totalSteps.every(id => id === nodeId || completedNodes.includes(id));
       if (isFinished) {
         triggerAchievement('dream_job');
       }
 
-      // Check for skill completions
+      // Check 5 complete
       if (completedNodes.length + 1 >= 5) {
         triggerAchievement('master_tech');
       }
@@ -342,7 +593,19 @@ export const RoadmapProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return updated;
     });
 
-    updateProfileXP(Math.round(hours * 50)); // 50 XP per hour studied
+    updateProfileXP(Math.round(hours * 50));
+
+    // Cloud Sync study session
+    if (isSupabaseConfigured) {
+      supabase!.auth.getSession().then(({ data: { session } }: any) => {
+        if (session?.user) {
+          supabase!
+            .from('study_sessions')
+            .insert({ user_id: session.user.id, hours, milestone_id: milestoneId })
+            .then();
+        }
+      });
+    }
 
     // Streak logic
     const lastActive = localStorage.getItem('pw_lastActiveDate');
@@ -396,9 +659,6 @@ export const RoadmapProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setRoadmap(saved.roadmap);
       saveState('pw_careerGoal', saved.goal);
       saveState('pw_roadmap', saved.roadmap);
-      
-      // Load completed nodes for this specific roadmap if saved
-      // For simplicity, we keep active completed nodes
     }
   };
 

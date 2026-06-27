@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-
 import { 
   Video, 
-  Sparkles, 
   HelpCircle, 
   Volume2, 
   ChevronDown, 
   ChevronUp, 
   UserCheck, 
-  Radio
+  Radio,
+  Mic,
+  MicOff,
+  Sparkle
 } from 'lucide-react';
 import { useRoadmap } from '../context/RoadmapContext';
 
@@ -29,25 +30,15 @@ export const Interview: React.FC = () => {
   const [activeMockQuestionIdx, setActiveMockQuestionIdx] = useState(0);
   const [mockScoreCard, setMockScoreCard] = useState<any | null>(null);
 
-  if (!roadmap) {
-    return (
-      <div className="w-full min-h-[80vh] flex flex-col items-center justify-center p-6 text-center">
-        <Video className="w-16 h-16 text-slate-700 mb-4 animate-bounce" />
-        <h2 className="font-heading font-bold text-xl text-white mb-2">No Interview Topics Active</h2>
-        <p className="max-w-md text-xs text-slate-500 mb-6">
-          Generate an AI-powered career roadmap first to automatically compile a custom list of role-specific interview questions.
-        </p>
-        <button
-          onClick={() => navigate('/')}
-          className="px-6 py-3 rounded-xl bg-gradient-to-r from-neonPurple to-neonBlue text-slate-950 font-heading font-bold text-xs uppercase tracking-wider cursor-pointer"
-        >
-          Generate Roadmap
-        </button>
-      </div>
-    );
-  }
+  // Microphone Wave Visualizer states
+  const [isRecording, setIsRecording] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const audioStreamRef = useRef<MediaStream | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
 
-  const prepQuestions = roadmap.interviewTopics.filter(q => q.category === prepCategory);
+  const prepQuestions = roadmap ? roadmap.interviewTopics.filter(q => q.category === prepCategory) : [];
 
   const toggleReveal = (idx: number, type: 'ans' | 'hint') => {
     if (type === 'ans') {
@@ -69,23 +60,137 @@ export const Interview: React.FC = () => {
     e.preventDefault();
     if (!answerInput.trim()) return;
 
+    stopRecording();
     setMockStage('evaluating');
     await new Promise(r => setTimeout(r, 2000));
 
-    // Compile mock evaluation metrics
     setMockScoreCard({
       overall: 84,
       technical: 88,
       communication: 82,
       confidence: 80,
-      feedback: "You demonstrated solid technical familiarity with Server vs Client routing boundaries. To improve, structure your answers using the STAR method (Situation, Task, Action, Result) for behavioral metrics.",
+      feedback: "You demonstrated solid technical familiarity with Server vs Client routing boundaries. To improve, structure your answers using the STAR method for behavioral metrics.",
       improvements: [
         "Mention real-world project scenarios where you applied this architecture.",
-        "Articulate bundles size implications (e.g. '0KB client-side bundles') when explaining server components."
+        "Articulate bundles size implications when explaining server components."
       ]
     });
     setMockStage('result');
   };
+
+  // Web Audio Waveform Visualizer setup
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioStreamRef.current = stream;
+      setIsRecording(true);
+
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const audioCtx = new AudioContextClass();
+      audioCtxRef.current = audioCtx;
+
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const width = (canvas.width = canvas.parentElement?.clientWidth || 300);
+      const height = (canvas.height = 80);
+
+      const draw = () => {
+        if (!analyserRef.current) return;
+        animationFrameRef.current = requestAnimationFrame(draw);
+
+        analyserRef.current.getByteTimeDomainData(dataArray);
+
+        ctx.fillStyle = '#050816';
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = '#38bdf8';
+        ctx.beginPath();
+
+        const sliceWidth = (width * 1.0) / bufferLength;
+        let x = 0;
+
+        for (let i = 0; i < bufferLength; i++) {
+          const v = dataArray[i] / 128.0;
+          const y = (v * height) / 2;
+
+          if (i === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+
+          x += sliceWidth;
+        }
+
+        ctx.lineTo(canvas.width, canvas.height / 2);
+        ctx.stroke();
+      };
+
+      draw();
+    } catch (err) {
+      console.warn('Microphone permission denied or Web Audio failed.', err);
+    }
+  };
+
+  const stopRecording = () => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+    if (audioStreamRef.current) {
+      audioStreamRef.current.getTracks().forEach(t => t.stop());
+    }
+    if (audioCtxRef.current) {
+      audioCtxRef.current.close();
+    }
+    setIsRecording(false);
+    analyserRef.current = null;
+  };
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  };
+
+  // Safely stop audio loops when navigating away
+  useEffect(() => {
+    return () => {
+      stopRecording();
+    };
+  }, []);
+
+  if (!roadmap) {
+    return (
+      <div className="w-full min-h-[80vh] flex flex-col items-center justify-center p-6 text-center">
+        <Video className="w-16 h-16 text-slate-700 mb-4 animate-bounce" />
+        <h2 className="font-heading font-bold text-xl text-white mb-2">No Interview Topics Active</h2>
+        <p className="max-w-md text-xs text-slate-500 mb-6">
+          Generate an AI career roadmap first to populate your customized role-specific interview panel.
+        </p>
+        <button
+          onClick={() => navigate('/')}
+          className="px-6 py-3 rounded-xl bg-gradient-to-r from-neonPurple to-neonBlue text-slate-950 font-heading font-bold text-xs uppercase tracking-wider cursor-pointer"
+        >
+          Generate Roadmap
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-5xl px-6 py-10 text-slate-100 pb-24 lg:pb-12">
@@ -93,7 +198,7 @@ export const Interview: React.FC = () => {
       <div className="mb-10 pb-6 border-b border-slate-900 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
           <h1 className="font-heading font-extrabold text-3xl text-white mb-1.5 flex items-center gap-2">
-            <Video className="w-8 h-8 text-neonPurple" /> Interview Preparation
+            <Video className="w-8 h-8 text-neonPurple animate-pulse" /> Mock Interview Console
           </h1>
           <p className="text-xs text-slate-500">
             Practice mock scenarios for target: <span className="text-neonBlue font-mono">{roadmap.career}</span>
@@ -123,7 +228,7 @@ export const Interview: React.FC = () => {
 
       {/* VIEW 1: QUESTION PREPARATION LIST */}
       {activeTab === 'prep' && (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-fade-in">
           {/* Category Chips */}
           <div className="flex flex-wrap gap-2 pb-2">
             {(['Technical', 'Coding', 'System Design', 'Behavioral'] as const).map((cat) => (
@@ -165,7 +270,7 @@ export const Interview: React.FC = () => {
                   <div className="space-y-2">
                     <button
                       onClick={() => toggleReveal(idx, 'hint')}
-                      className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-300 font-mono uppercase tracking-wider"
+                      className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-300 font-mono uppercase tracking-wider cursor-pointer"
                     >
                       {revealedHints[idx] ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />} Hints
                     </button>
@@ -187,7 +292,7 @@ export const Interview: React.FC = () => {
                       {revealedAnswers[idx] ? 'Hide Guidelines' : 'Reveal Expected Answer'}
                     </button>
                     <button
-                      onClick={() => setActiveTab('mock')}
+                      onClick={() => { setActiveTab('mock'); handleStartMock(); }}
                       className="text-xs text-neonBlue hover:text-neonPurple font-semibold flex items-center gap-1 cursor-pointer"
                     >
                       Practice in Mock Console <Volume2 className="w-4 h-4 text-neonBlue" />
@@ -209,24 +314,24 @@ export const Interview: React.FC = () => {
 
       {/* VIEW 2: AI MOCK INTERVIEW CONSOLE */}
       {activeTab === 'mock' && (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-fade-in">
           {!mockStarted ? (
             /* Intro State */
-            <div className="glass-panel p-8 rounded-3xl text-center max-w-xl mx-auto space-y-6 border border-slate-800 shadow-xl shadow-neonPurple/5">
+            <div className="glass-panel p-8 rounded-3xl text-center max-w-xl mx-auto space-y-6 border border-slate-800 shadow-xl">
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-neonPurple to-neonBlue flex items-center justify-center mx-auto shadow-md shadow-neonPurple/20">
                 <Video className="w-8 h-8 text-white animate-pulse" />
               </div>
               <div>
-                <h3 className="font-heading font-extrabold text-2xl text-white mb-2">Launch Mock Interview Session</h3>
+                <h3 className="font-heading font-extrabold text-2xl text-white mb-2 font-bold">Launch Voice-Ready Assessment</h3>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Enter an interactive session. The AI Interviewer will present a role-specific question, capture your response, and score your technical knowledge, confidence, and communication structures.
+                  Connect your microphone to practice speaking. The AI Interviewer will evaluate response context, communication cadence, and deliver detailed diagnostic metrics.
                 </p>
               </div>
               <button
                 onClick={handleStartMock}
-                className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-neonPurple to-neonBlue text-slate-950 font-heading font-bold text-xs uppercase tracking-wider cursor-pointer shadow-lg shadow-neonPurple/20 hover:scale-[1.02] transition-transform"
+                className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-neonPurple to-neonBlue text-slate-950 font-heading font-bold text-xs uppercase tracking-wider cursor-pointer shadow-lg hover:scale-[1.02] transition-transform"
               >
-                Connect Camera & Start
+                Connect Mic & Start
               </button>
             </div>
           ) : (
@@ -236,21 +341,41 @@ export const Interview: React.FC = () => {
               {/* Media Stream Simulation Column (Left) */}
               <div className="md:col-span-1 space-y-4">
                 {/* Visual Video stream placeholder */}
-                <div className="w-full aspect-[4/3] rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center relative overflow-hidden group shadow-lg">
+                <div className="w-full aspect-[4/3] rounded-2xl bg-slate-950 border border-slate-800 flex flex-col items-center justify-center relative overflow-hidden group shadow-lg">
                   {/* Glowing camera scanning overlay */}
                   <div className="absolute inset-0 bg-gradient-to-b from-transparent via-neonPurple/5 to-transparent pointer-events-none animate-pulse" />
                   
                   {/* Active Recording Dot */}
-                  <div className="absolute top-4 left-4 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900 border border-red-500/30 text-[9px] font-mono text-red-500 font-bold uppercase z-10">
-                    <Radio className="w-3.5 h-3.5 text-red-500 animate-pulse" /> Live Stream
+                  <div className="absolute top-4 left-4 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-905 border border-red-500/30 text-[9px] font-mono text-red-500 font-bold uppercase z-10">
+                    <Radio className="w-3.5 h-3.5 text-red-500 animate-pulse" /> Live Mic Input
                   </div>
 
-                  <span className="text-xs text-slate-600 font-heading">Camera Active</span>
+                  {/* Wave Visualizer Box */}
+                  <div className="w-full px-4 flex flex-col items-center gap-4">
+                    {isRecording ? (
+                      <canvas ref={canvasRef} className="w-full h-20 bg-slate-950 rounded-lg border border-slate-900" />
+                    ) : (
+                      <div className="h-20 flex items-center justify-center text-[10px] text-slate-700 font-mono">
+                        Microphone Muted
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={toggleRecording}
+                      className={`p-3 rounded-full border transition-all cursor-pointer ${
+                        isRecording 
+                          ? 'bg-red-500/10 border-red-500 text-red-500' 
+                          : 'bg-neonBlue/10 border-neonBlue text-neonBlue'
+                      }`}
+                    >
+                      {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="text-center">
                   <button
-                    onClick={() => setMockStarted(false)}
+                    onClick={() => { stopRecording(); setMockStarted(false); }}
                     className="text-xs text-red-400 hover:text-red-300 font-bold uppercase tracking-wider cursor-pointer"
                   >
                     Disconnect Session
@@ -275,11 +400,14 @@ export const Interview: React.FC = () => {
 
                     <form onSubmit={handleMockSubmitAnswer} className="space-y-4 pt-4 border-t border-slate-900/60">
                       <div>
-                        <label className="block text-[9px] text-slate-500 uppercase tracking-widest font-mono font-bold mb-2">
-                          Your Answer Response
-                        </label>
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="block text-[9px] text-slate-500 uppercase tracking-widest font-mono font-bold">
+                            Your Spoken/Typed Response
+                          </label>
+                          <span className="text-[9px] text-slate-500 font-mono">Click Mic to speak or type reply</span>
+                        </div>
                         <textarea
-                          placeholder="Type or transcript your verbal response in detail..."
+                          placeholder="Type your response here or speak using your microphone..."
                           value={answerInput}
                           onChange={(e) => setAnswerInput(e.target.value)}
                           rows={6}
@@ -292,7 +420,7 @@ export const Interview: React.FC = () => {
                           type="submit"
                           className="px-6 py-2.5 rounded-xl bg-neonPurple hover:bg-neonPurple/90 text-white text-xs font-heading font-bold uppercase tracking-wider transition-colors cursor-pointer"
                         >
-                          Submit Answer
+                          Submit Response
                         </button>
                       </div>
                     </form>
@@ -304,7 +432,7 @@ export const Interview: React.FC = () => {
                   <div className="glass-panel p-12 rounded-2xl flex flex-col items-center justify-center text-center h-[300px]">
                     <div className="w-12 h-12 rounded-full border-t-2 border-r-2 border-neonBlue animate-spin mb-4" />
                     <h3 className="text-sm font-bold text-slate-200 mb-1">Evaluating Response</h3>
-                    <p className="text-[10px] text-slate-500 font-mono uppercase tracking-wider animate-pulse">Checking syntax accuracy and structural confidence...</p>
+                    <p className="text-[10px] text-slate-500 font-mono uppercase tracking-wider animate-pulse">Checking syntax accuracy and vocal confidence parameters...</p>
                   </div>
                 )}
 
@@ -340,7 +468,7 @@ export const Interview: React.FC = () => {
                     {/* Improvements suggestions */}
                     <div className="glass-panel p-6 rounded-2xl space-y-3">
                       <h4 className="text-[10px] text-slate-500 uppercase font-bold tracking-widest flex items-center gap-1.5">
-                        <Sparkles className="w-4 h-4 text-neonPurple" /> Specific Improvement tips
+                        <Sparkle className="w-4 h-4 text-neonPurple" /> Specific Improvement tips
                       </h4>
                       <ul className="list-disc pl-4 space-y-2 text-xs text-slate-400 leading-relaxed">
                         {mockScoreCard.improvements.map((imp: string, i: number) => (

@@ -4,6 +4,8 @@ import { ParticleBackground } from './components/ParticleBackground';
 import { Sidebar } from './components/Sidebar';
 import { MobileNavbar } from './components/MobileNavbar';
 import { MentorChat } from './components/MentorChat';
+import { AuthGate } from './components/AuthGate';
+import { CommandPalette } from './components/CommandPalette';
 
 // Pages
 import { Landing } from './pages/Landing';
@@ -22,36 +24,41 @@ function App() {
   return (
     <RoadmapProvider>
       <Router>
-        <div className="min-h-screen bg-background text-slate-100 flex flex-col font-sans relative">
-          
-          {/* Parallax Background */}
-          <ParticleBackground />
+        <AuthGate>
+          <div className="min-h-screen bg-background text-slate-100 flex flex-col font-sans relative">
+            
+            {/* Parallax Background */}
+            <ParticleBackground />
 
-          {/* Navigation Structure */}
-          <Sidebar />
-          <MobileNavbar />
+            {/* Global AI Command Palette */}
+            <CommandPalette />
 
-          {/* Main Content Area */}
-          <main className="flex-1 lg:pl-64 min-h-screen flex flex-col items-center relative z-10 overflow-x-hidden">
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/roadmap" element={<Roadmap />} />
-              <Route path="/skills" element={<SkillsTree />} />
-              <Route path="/planners" element={<Planners />} />
-              <Route path="/projects" element={<Projects />} />
-              <Route path="/certifications" element={<Certifications />} />
-              <Route path="/analyzer" element={<Analyzer />} />
-              <Route path="/interview" element={<Interview />} />
-              <Route path="/salary" element={<Salary />} />
-              <Route path="/profile" element={<Profile />} />
-            </Routes>
-          </main>
+            {/* Navigation Structure */}
+            <Sidebar />
+            <MobileNavbar />
 
-          {/* Floating AI Mentor Chat Panel */}
-          <MentorChat />
-          
-        </div>
+            {/* Main Content Area */}
+            <main className="flex-1 lg:pl-64 min-h-screen flex flex-col items-center relative z-10 overflow-x-hidden">
+              <Routes>
+                <Route path="/" element={<Landing />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/roadmap" element={<Roadmap />} />
+                <Route path="/skills" element={<SkillsTree />} />
+                <Route path="/planners" element={<Planners />} />
+                <Route path="/projects" element={<Projects />} />
+                <Route path="/certifications" element={<Certifications />} />
+                <Route path="/analyzer" element={<Analyzer />} />
+                <Route path="/interview" element={<Interview />} />
+                <Route path="/salary" element={<Salary />} />
+                <Route path="/profile" element={<Profile />} />
+              </Routes>
+            </main>
+
+            {/* Floating AI Mentor Chat Panel */}
+            <MentorChat />
+            
+          </div>
+        </AuthGate>
       </Router>
     </RoadmapProvider>
   );

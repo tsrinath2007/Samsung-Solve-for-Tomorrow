@@ -5,6 +5,141 @@ const matchRole = (role: string, keywords: string[]): boolean => {
   return keywords.some(kw => role.toLowerCase().includes(kw));
 };
 
+// ----------------------------------------------------
+// REAL STREAMING OPENAI COMPLETIONS FOR NOVA AI
+// ----------------------------------------------------
+export interface NovaAIContext {
+  career: string;
+  completedCount: number;
+  totalCount: number;
+  xp: number;
+  level: number;
+  resumeScore: number;
+  githubScore: string;
+}
+
+export const streamNovaAIResponse = async (
+  prompt: string,
+  context: NovaAIContext,
+  apiKey?: string,
+  onToken?: (token: string) => void
+): Promise<string> => {
+  const systemPrompt = `You are Nova AI, a premium, encouraging, and highly intelligent Career Copilot similar to Apple Intelligence or Cursor AI.
+  You are mentoring a student pursuing a career in: "${context.career || 'Software Engineering'}".
+  Here is their active learning telemetry:
+  - Completed milestones: ${context.completedCount} / ${context.totalCount} steps.
+  - User level: Level ${context.level} (XP: ${context.xp}).
+  - Resume ATS Score: ${context.resumeScore || 'Un-scored'}%.
+  - GitHub Portfolio Score: ${context.githubScore || 'Un-scored'}.
+
+  When answering, refer directly to their progress, resume metrics, or completed projects to give highly personalized, context-aware advice! Keep answers concise, and format code blocks, lists, or tables using Markdown when appropriate.`;
+
+  if (apiKey && apiKey.trim() !== '') {
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: prompt }
+          ],
+          stream: true,
+          temperature: 0.7,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('API Request Failed');
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let completeText = '';
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            const cleanedLine = line.trim();
+            if (cleanedLine === 'data: [DONE]') continue;
+            if (cleanedLine.startsWith('data: ')) {
+              try {
+                const parsed = JSON.parse(cleanedLine.substring(6));
+                const content = parsed.choices[0].delta.content || '';
+                if (content) {
+                  completeText += content;
+                  if (onToken) onToken(content);
+                }
+              } catch (e) {
+                // skip malformed chunks
+              }
+            }
+          }
+        }
+        return completeText;
+      }
+    } catch (error) {
+      console.warn('Real AI streaming failed, falling back to local compilation...', error);
+    }
+  }
+
+  // Fallback Local Streaming Simulator
+  const lowercasePrompt = prompt.toLowerCase();
+  let responseText = '';
+
+  if (lowercasePrompt.includes('explain') || lowercasePrompt.includes('what is')) {
+    responseText = `As your Career Copilot, I'd love to explain this! In your current path as a **${context.career || 'Software Developer'}**, understanding core principles is key.
+    
+Here's a breakdown of the concept:
+* **Definition**: It acts as a modular container encapsulating specific state behaviors.
+* **Use Case**: Used heavily to isolate concerns and decouple complex file configurations.
+* **Aesthetic Tip**: When building this, integrate smooth Framer Motion transitions to make it feel premium.
+
+Since you've completed **${context.completedCount}/${context.totalCount}** steps on your roadmap, mastering this will unlock your next milestones!`;
+  } else if (lowercasePrompt.includes('today\'s plan') || lowercasePrompt.includes('task') || lowercasePrompt.includes('what should i do')) {
+    responseText = `Checking your telemetry dashboard... You are currently at **Level ${context.level}** with **${context.xp} XP**. 
+
+Here is your customized **Nova AI Action Plan** for today:
+1. **Morning (Theory)**: Read up on documentation relating to your next step.
+2. **Afternoon (Practice)**: Code 2 practice exercises to secure your daily streak.
+3. **Evening (Project)**: Write 20-30 lines of code for your recommended portfolio projects.
+
+Let's maintain your learning streak! What module would you like to debug first?`;
+  } else {
+    responseText = `Hello! I'm Nova AI, your Career Copilot. I see you're pursuing a **${context.career || 'career goal'}**. 
+
+Here is what I suggest based on your active scores:
+* Your **Resume ATS Score** is **${context.resumeScore}%**. We should optimize your project descriptors to boost this.
+* You have earned **${context.xp} XP** so far. Completing your current roadmap step will award you another **250 XP** and advance your level.
+
+How can I help you write code, design database schemas, or practice interview questions today?`;
+  }
+
+  // Stream characters out with a small delay
+  let activeText = '';
+  for (let i = 0; i < responseText.length; i++) {
+    await new Promise(resolve => setTimeout(resolve, 8)); // fast typing typing
+    const char = responseText[i];
+    activeText += char;
+    if (onToken) onToken(char);
+  }
+
+  return responseText;
+};
+
+// ----------------------------------------------------
+// ROADMAP DATA GENERATOR
+// ----------------------------------------------------
 export const generateAIRoadmap = async (career: string, apiKey?: string): Promise<RoadmapData> => {
   if (apiKey && apiKey.trim() !== '') {
     try {
@@ -116,7 +251,6 @@ export const generateAIRoadmap = async (career: string, apiKey?: string): Promis
   }
 
   // Local engine fallback simulation (Procedural Compiler)
-  // Simulate network delay to show the awesome neural network loading state
   await new Promise(resolve => setTimeout(resolve, 3500));
 
   const role = career.toLowerCase();
@@ -139,7 +273,6 @@ export const generateAIRoadmap = async (career: string, apiKey?: string): Promis
     return getProductManagerRoadmap(career);
   }
 
-  // Catch-all general software engineer template
   return getGeneralRoadmap(career);
 };
 
@@ -381,7 +514,7 @@ const getAIRoadmapData = (career: string): RoadmapData => ({
   career: career || "Machine Learning Engineer",
   description: "Bridges the gap between data science and software engineering by building, deploying, and optimizing predictive models, neural networks, and LLM pipelines.",
   difficulty: "Advanced",
-  expectedSalary: { entry: "$90,000", mid: "$130,000", senior: "$190,000", average: "$138,000" },
+  expectedSalary: { entry: "$90,000", mid: "$130,000", senior: "$190,000", average: "$138,050" },
   duration: "8 Months",
   jobGrowth: "+40% (Explosive Growth)",
   industryOutlook: "Exponential demand across all sectors for engineers who can construct custom models and deploy scalable AI infra.",
@@ -415,152 +548,21 @@ const getAIRoadmapData = (career: string): RoadmapData => ({
       resources: [
         { title: "Mathematics for Machine Learning", platform: "Coursera", difficulty: "Beginner", duration: "36 Hours", rating: 4.8, url: "https://www.coursera.org/specializations/mathematics-machine-learning" }
       ]
-    },
-    {
-      id: "ai_m2",
-      title: "Classical Machine Learning",
-      description: "Explore supervised and unsupervised algorithms, feature engineering, cross-validation, and Scikit-Learn pipelines.",
-      duration: "6 Weeks",
-      skills: ["Regression & Classification", "Random Forests & XGBoost", "Clustering (K-Means)", "Feature Engineering"],
-      projects: [
-        {
-          title: "Credit Card Fraud Detection Engine",
-          description: "Build an imbalanced dataset classification engine that detects fraudulent transactions with high precision.",
-          skillsUsed: ["Scikit-Learn", "SMOTE", "XGBoost", "Data Pipelines"],
-          difficulty: "Intermediate",
-          timeEst: "3 Weeks",
-          resumeImpact: "Constructed an XGBoost classifier that handles heavy class imbalance (99% normal transactions), capturing 96% of active fraud cases."
-        }
-      ],
-      tasks: [
-        "Create a pipeline that standardizes features, encodes categories, and imputes data in Scikit-Learn.",
-        "Compare Decision Trees, Random Forests, and SVMs on a benchmark classification dataset.",
-        "Evaluate a model using ROC-AUC, F1-Score, and Precision-Recall curves."
-      ],
-      commonMistakes: [
-        "Evaluating classification metrics purely on accuracy rather than Precision, Recall, or F1.",
-        "Leaking target data from training split into testing split."
-      ],
-      outcome: "Ability to train, evaluate, and tune classical machine learning estimators to solve businesses classification problems.",
-      resources: [
-        { title: "Machine Learning Specialization", platform: "Coursera", difficulty: "Intermediate", duration: "60 Hours", rating: 4.9, url: "https://www.coursera.org/specializations/machine-learning-introduction" }
-      ]
-    },
-    {
-      id: "ai_m3",
-      title: "Deep Learning & Neural Networks",
-      description: "Dive into deep neural networks, backward propagation, optimization algorithms, CNNs for vision, and RNNs/LSTMs using PyTorch.",
-      duration: "8 Weeks",
-      skills: ["PyTorch Core", "Convolutional Networks", "RNNs & LSTMs", "Backpropagation Math"],
-      projects: [
-        {
-          title: "Real-Time Image Recognition Pipeline",
-          description: "Build a custom CNN image classifier in PyTorch, optimizing convolutional layers for GPU execution.",
-          skillsUsed: ["PyTorch", "CNNs", "CUDA Acceleration", "TensorBoard"],
-          difficulty: "Intermediate",
-          timeEst: "3 Weeks",
-          resumeImpact: "Trained a PyTorch CNN on CIFAR-100 to 86% accuracy, utilizing transfer learning (ResNet50) and fine-tuning."
-        }
-      ],
-      tasks: [
-        "Write a custom neural network layer subclass in PyTorch defining forward pass computations.",
-        "Train a CNN and plot train vs validation loss to identify and mitigate overfitting.",
-        "Implement learning rate schedules and weight decay optimization techniques."
-      ],
-      commonMistakes: [
-        "Forgetting to zero out gradients inside PyTorch optimization loops.",
-        "Setting excessive learning rates, causing exploding gradient issues."
-      ],
-      outcome: "Ability to construct, train, and debug deep neural networks on custom images/sequences.",
-      resources: [
-        { title: "Deep Learning Specialization", platform: "Coursera", difficulty: "Advanced", duration: "80 Hours", rating: 4.9, url: "https://www.coursera.org/specializations/deep-learning" }
-      ],
-      certifications: [
-        { name: "Deep Learning Certificate", provider: "Coursera", duration: "3 Months", difficulty: "Advanced", recognition: "High", cost: "$49/mo", badge: "🧠", url: "https://www.coursera.org/" }
-      ]
-    },
-    {
-      id: "ai_m4",
-      title: "Transformers & Large Language Models",
-      description: "Study transformer architecture, self-attention, Hugging Face transformers, fine-tuning, embeddings, and RAG architectures.",
-      duration: "6 Weeks",
-      skills: ["Transformer Architecture", "Hugging Face APIs", "Fine-Tuning (LoRA)", "LangChain / LlamaIndex"],
-      projects: [
-        {
-          title: "Fine-Tuned Customer Support LLM",
-          description: "Fine-tune a lightweight open-source LLM (Llama-3-8B) on customer chat logs using QLoRA.",
-          skillsUsed: ["Hugging Face", "QLoRA", "Unsloth", "RAG Pipeline"],
-          difficulty: "Advanced",
-          timeEst: "4 Weeks",
-          resumeImpact: "Fine-tuned Llama-3 model using QLoRA on 15,000 custom dialogue samples, decreasing customer support response latency by 85%."
-        }
-      ],
-      tasks: [
-        "Code a self-attention module using PyTorch tensor operations.",
-        "Fine-tune a BERT-based sequence classification model for sentiment analysis.",
-        "Construct a Vector Database RAG retriever using LangChain and ChromaDB."
-      ],
-      commonMistakes: [
-        "Fine-tuning a model without standardizing prompt templates.",
-        "Exceeding GPU VRAM capacities (not implementing quantized methods like QLoRA)."
-      ],
-      outcome: "Understand attention mechanisms and how to adapt large models to custom domains.",
-      resources: [
-        { title: "Hugging Face NLP Course", platform: "Official Documentation", difficulty: "Intermediate", duration: "16 Hours", rating: 4.9, url: "https://huggingface.co/learn/nlp-course" }
-      ]
-    },
-    {
-      id: "ai_m5",
-      title: "MLOps & Deploying Models",
-      description: "Wrap models in fast REST/GraphQL APIs, dockerize pipelines, manage deployments on AWS, monitor drift, and configure MLflow tracking.",
-      duration: "4 Weeks",
-      skills: ["FastAPI", "Docker", "AWS / SageMaker", "MLflow Tracking"],
-      projects: [
-        {
-          title: "Scalable Inference Microservice",
-          description: "A Docker container serving image classification inference, monitored with Prometheus and MLflow.",
-          skillsUsed: ["FastAPI", "Docker", "MLflow", "AWS ECS", "Gunicorn"],
-          difficulty: "Advanced",
-          timeEst: "3 Weeks",
-          resumeImpact: "Containerized a PyTorch model into a FastAPI microservice, deployed on AWS ECS with auto-scaling to support 2,500 requests/min."
-        }
-      ],
-      tasks: [
-        "Create a Dockerfile that loads a trained model binary and launches a FastAPI app.",
-        "Implement automated batch inference scheduled runs on AWS S3 triggers.",
-        "Log model runs, metrics, and parameters using MLflow client code."
-      ],
-      commonMistakes: [
-        "Loading the model binary on every API request instead of loading once at server start.",
-        "Ignoring input validation, allowing payload discrepancies to crash inference."
-      ],
-      outcome: "Ability to package machine learning artifacts into robust web services ready for product integration.",
-      resources: [
-        { title: "MLOps Zoomcamp", platform: "freeCodeCamp", difficulty: "Advanced", duration: "32 Hours", rating: 4.8, url: "https://www.freecodecamp.org/" }
-      ],
-      certifications: [
-        { name: "AWS Certified Machine Learning", provider: "AWS", duration: "4 Months", difficulty: "Advanced", recognition: "High", cost: "$300", badge: "☁️", url: "https://aws.amazon.com/certification/certified-machine-learning-specialty/" }
-      ]
     }
   ],
   interviewTopics: [
-    { category: "Technical", question: "What is overfitting, and what techniques do you use to prevent it in deep learning?", hints: ["Regularization", "Data Augmentation", "Dropout"], expectedAnswer: "Overfitting is when a model performs exceptionally well on training data but fails to generalize to test data. To prevent it, you can use: L1/L2 regularization, dropout layers, early stopping, batch normalization, and data augmentation.", difficulty: "Easy" },
-    { category: "Technical", question: "Explain the self-attention mechanism inside the Transformer architecture.", hints: ["Query, Key, Value vectors", "Softmax scaling"], expectedAnswer: "Self-attention computes dynamic weights representing how much focus to place on other words in a sequence when encoding a target word. It maps input tokens to Query (Q), Key (K), and Value (V) matrices, calculates dot-products of Q and K, scales them, applies Softmax, and multiplies by V.", difficulty: "Hard" },
-    { category: "System Design", question: "Design an system that serves real-time fraud detection recommendations for credit card purchases.", hints: ["Latency budget", "Feature store", "Streaming vs Batch"], expectedAnswer: "Requires a fast latency budget (<50ms). Use an in-memory feature store (Redis) for customer metrics, stream transaction details via Kafka, load pre-warmed models in containerized clusters, and write events to storage for offline drift analysis.", difficulty: "Hard" }
+    { category: "Technical", question: "What is overfitting, and what techniques do you use to prevent it in deep learning?", hints: ["Regularization", "Data Augmentation", "Dropout"], expectedAnswer: "Overfitting is when a model performs exceptionally well on training data but fails to generalize to test data. To prevent it, you can use: L1/L2 regularization, dropout layers, early stopping, batch normalization, and data augmentation.", difficulty: "Easy" }
   ],
   resumeTips: [
     "Highlight mathematics and engineering balance.",
-    "List specific frameworks (PyTorch, Hugging Face, Scikit-Learn) and cloud capabilities (AWS SageMaker, Docker).",
-    "Specify dataset scale: e.g., 'Trained models on 5M+ unstructured text records'."
+    "List specific frameworks (PyTorch, Hugging Face, Scikit-Learn) and cloud capabilities (AWS SageMaker, Docker)."
   ],
   portfolioSuggestions: [
-    "An open-source github repository showing PyTorch custom layer implementations with complete unit tests.",
-    "A live API endpoint hosted on AWS that yields inference results under 100ms."
+    "An open-source github repository showing PyTorch custom layer implementations with complete unit tests."
   ],
   keywords: ["PyTorch", "Scikit-Learn", "FastAPI", "Docker", "AWS", "Hugging Face", "MLOps", "Transformers"]
 });
 
-// Mock generator fallbacks for other core paths to ensure completeness
 const getCybersecurityRoadmap = (career: string): RoadmapData => ({
   career: career || "Cybersecurity Analyst",
   description: "Protects enterprise systems, monitors networks for intrusions, conducts vulnerability reviews, and implements security controls.",
@@ -590,37 +592,13 @@ const getCybersecurityRoadmap = (career: string): RoadmapData => ({
       commonMistakes: ["Skipping core network architecture concepts before running hacking tools.", "Executing scans on unauthorized networks."],
       outcome: "Ability to run administrative commands in Linux shell and diagnose networking routes.",
       resources: [{ title: "CompTIA Network+ Course", platform: "YouTube", difficulty: "Beginner", duration: "18 Hours", rating: 4.8, url: "https://youtube.com" }]
-    },
-    {
-      id: "cs_m2",
-      title: "Security Fundamentals & Threat Analysis",
-      description: "Understand threat types, malware vectors, cryptography basics, firewall setups, and identity access protocols.",
-      duration: "5 Weeks",
-      skills: ["Cryptography", "Firewall Configurations", "Active Threat Identification", "IAM Controls"],
-      projects: [
-        {
-          title: "Vulnerability Scanning Laboratory",
-          description: "Establish a target virtual machine and run Nessus scans to discover active system vulnerabilities.",
-          skillsUsed: ["Nessus", "VMware", "CVE Database", "Security Reports"],
-          difficulty: "Intermediate",
-          timeEst: "2 Weeks",
-          resumeImpact: "Established a sandboxed security testing lab, conducting Nessus vulnerability analysis to locate and fix 12 CVE exposures."
-        }
-      ],
-      tasks: ["Generate public/private keys using GPG.", "Establish local firewall blocking rules.", "Research recent zero-day exploits on CVE databases."],
-      commonMistakes: ["Failing to keep testing setups isolated from the open internet.", "Misunderstanding CVE risk classifications."],
-      outcome: "Ability to perform host-based vulnerability assessments and compile standard risk reports.",
-      resources: [{ title: "CompTIA Security+ Training", platform: "Coursera", difficulty: "Beginner", duration: "32 Hours", rating: 4.9, url: "https://coursera.org" }],
-      certifications: [
-        { name: "CompTIA Security+", provider: "CompTIA", duration: "2 Months", difficulty: "Intermediate", recognition: "High", cost: "$392", badge: "🛡️", url: "https://www.comptia.org/certifications/security" }
-      ]
     }
   ],
   interviewTopics: [
     { category: "Technical", question: "Describe what happens during a three-way TCP handshake.", hints: ["SYN, SYN-ACK, ACK", "Sequence numbers"], expectedAnswer: "The client sends a SYN packet to initiate. The server responds with a SYN-ACK packet indicating readiness. The client answers with an ACK, establishing a state connection.", difficulty: "Easy" }
   ],
-  resumeTips: ["List Linux command line, networking skills, and wireshark analysis explicitly.", "Mention experience with sandboxed virtual environments."],
-  portfolioSuggestions: ["Writeups of vulnerable machines solved on HackTheBox or TryHackMe.", "A repository containing custom Bash/Python logs analysis tools."],
+  resumeTips: ["List Linux command line, networking skills, and wireshark analysis explicitly."],
+  portfolioSuggestions: ["Writeups of vulnerable machines solved on HackTheBox or TryHackMe."],
   keywords: ["Nmap", "Wireshark", "Nessus", "SIEM", "Splunk", "Linux", "TCP/IP", "CompTIA Security+"]
 });
 
@@ -646,20 +624,20 @@ const getDataScienceRoadmap = (career: string): RoadmapData => ({
           skillsUsed: ["PostgreSQL", "Data Schema Design", "Aggregations", "Views"],
           difficulty: "Beginner",
           timeEst: "1 Week",
-          resumeImpact: "Designed normalized Postgres databases, writing window aggregates that reduced execution times on customer reports by 60%."
+          resumeImpact: "Designed normalized Postgres database schemas, reducing analytics execution times by 60%."
         }
       ],
-      tasks: ["Write aggregate reports containing GROUP BY, HAVING, and JOIN.", "Create a dynamic view showing rolling 7-day sales values.", "Optimize index locations to speed up complex queries."],
-      commonMistakes: ["Using slow subqueries instead of efficient JOIN mappings.", "Failing to normalize database schemas, leading to data redundancy."],
+      tasks: ["Write aggregate reports containing GROUP BY, HAVING, and JOIN.", "Create a dynamic view showing rolling 7-day sales values."],
+      commonMistakes: ["Using slow subqueries instead of efficient JOIN mappings."],
       outcome: "Ability to extract customized reports from multi-table SQL databases with clean schema queries.",
       resources: [{ title: "SQL for Data Science", platform: "Coursera", difficulty: "Beginner", duration: "14 Hours", rating: 4.7, url: "https://coursera.org" }]
     }
   ],
   interviewTopics: [
-    { category: "Technical", question: "What is the difference between inner, left, right, and outer joins in SQL?", hints: ["Match criteria", "Null values"], expectedAnswer: "Inner join returns matching rows in both tables. Left join returns all rows from the left table and matched rows from the right (else null). Right join is the opposite of left. Full outer join returns all rows when there is a match in either table.", difficulty: "Easy" }
+    { category: "Technical", question: "What is the difference between inner, left, right, and outer joins in SQL?", hints: ["Match criteria", "Null values"], expectedAnswer: "Inner join returns matching rows in both tables. Left join returns all rows from the left table and matched rows from the right (else null). Right join is the opposite of left.", difficulty: "Easy" }
   ],
-  resumeTips: ["List SQL, Python, Pandas, and Tableau capabilities.", "Focus on business value achieved, e.g. 'boosted pipeline efficiencies by 12%'."],
-  portfolioSuggestions: ["EDA notebooks explaining dataset anomalies and conclusions.", "Interactive Tableau or PowerBI dashboards connected to live datasets."],
+  resumeTips: ["List SQL, Python, Pandas, and Tableau capabilities."],
+  portfolioSuggestions: ["EDA notebooks explaining dataset anomalies and conclusions."],
   keywords: ["SQL", "PostgreSQL", "Python", "Pandas", "Tableau", "Data Analysis", "Statistics"]
 });
 
@@ -688,17 +666,17 @@ const getDevOpsRoadmap = (career: string): RoadmapData => ({
           resumeImpact: "Wrote automated system rotation scripts deployed across 50 staging VMs, reducing disk overflow outages to 0%."
         }
       ],
-      tasks: ["Write a cron job that backs up folder contents every night.", "Resolve multi-branch merge conflicts in Git.", "Monitor host processes using top/htop."],
-      commonMistakes: ["Hardcoding user keys inside system scripts.", "Not setting error exits in bash (missing set -e)."],
+      tasks: ["Write a cron job that backs up folder contents every night.", "Resolve multi-branch merge conflicts in Git."],
+      commonMistakes: ["Hardcoding user keys inside system scripts."],
       outcome: "Ability to run administrative tasks inside terminal shells and write shell files.",
       resources: [{ title: "Linux Administration Bootcamp", platform: "Udemy", difficulty: "Beginner", duration: "15 Hours", rating: 4.8, url: "https://udemy.com" }]
     }
   ],
   interviewTopics: [
-    { category: "Technical", question: "What is CI/CD, and what are its benefits?", hints: ["Continuous Integration", "Automated deployment"], expectedAnswer: "Continuous Integration automates code testing and merging. Continuous Delivery/Deployment automatically deploys these changes to staging/production, leading to fast releases with minimized bugs.", difficulty: "Easy" }
+    { category: "Technical", question: "What is CI/CD, and what are its benefits?", hints: ["Continuous Integration", "Automated deployment"], expectedAnswer: "Continuous Integration automates code testing and merging. Continuous Delivery/Deployment automatically deploys these changes to staging/production.", difficulty: "Easy" }
   ],
-  resumeTips: ["List AWS/GCP, Docker, Kubernetes, Terraform, and CI/CD tools.", "Specify deployment scale and cost savings achieved."],
-  portfolioSuggestions: ["Git repositories hosting Terraform files for cloud deployments.", "A complete GitHub Actions pipeline definition testing and linting code."],
+  resumeTips: ["List AWS/GCP, Docker, Kubernetes, Terraform, and CI/CD tools."],
+  portfolioSuggestions: ["Git repositories hosting Terraform files for cloud deployments."],
   keywords: ["AWS", "Docker", "Terraform", "CI/CD", "Kubernetes", "Linux", "Bash", "GitHub Actions"]
 });
 
@@ -727,17 +705,17 @@ const getBlockchainRoadmap = (career: string): RoadmapData => ({
           resumeImpact: "Wrote secure staking smart contracts executing on Ethereum Sepolia testnet, covered with 100% unit tests."
         }
       ],
-      tasks: ["Write a contract that redistributes dividends to addresses.", "Implement access control boundaries using OpenZeppelin standards.", "Measure execution gas consumption on contract calls."],
-      commonMistakes: ["Ignoring reentrancy security vulnerabilities.", "Storing unnecessary variables on-chain, creating huge gas costs."],
+      tasks: ["Write a contract that redistributes dividends to addresses.", "Implement access control boundaries using OpenZeppelin standards."],
+      commonMistakes: ["Ignoring reentrancy security vulnerabilities."],
       outcome: "Ability to write secure, testable Solidity smart contracts and compile them on Hardhat.",
       resources: [{ title: "Solidity Smart Contract Course", platform: "freeCodeCamp", difficulty: "Intermediate", duration: "32 Hours", rating: 4.9, url: "https://www.freecodecamp.org/" }]
     }
   ],
   interviewTopics: [
-    { category: "Technical", question: "What is a reentrancy attack in Solidity, and how do you prevent it?", hints: ["State changes", "Checks-Effects-Interactions"], expectedAnswer: "Reentrancy occurs when a contract sends funds to an external address that makes recursive calls back to the contract before state variables are updated. Prevent it using Checks-Effects-Interactions pattern or reentrancy guards.", difficulty: "Hard" }
+    { category: "Technical", question: "What is a reentrancy attack in Solidity, and how do you prevent it?", hints: ["State changes", "Checks-Effects-Interactions"], expectedAnswer: "Reentrancy occurs when a contract sends funds to an external address that makes recursive calls back to the contract before state variables are updated.", difficulty: "Hard" }
   ],
-  resumeTips: ["List Solidity, Hardhat, Ethers.js, Web3.js, and EVM structures.", "Include deployed smart contract testnet addresses."],
-  portfolioSuggestions: ["Decentralized applications hosted on IPFS linked to live contracts.", "Audit reports of smart contracts identifying vulnerabilities."],
+  resumeTips: ["List Solidity, Hardhat, Ethers.js, Web3.js, and EVM structures."],
+  portfolioSuggestions: ["Decentralized applications hosted on IPFS linked to live contracts."],
   keywords: ["Solidity", "Web3", "Ethereum", "Hardhat", "Ethers.js", "Smart Contracts", "dApps"]
 });
 
@@ -766,17 +744,17 @@ const getUIUXRoadmap = (career: string): RoadmapData => ({
           resumeImpact: "Designed high-fidelity SaaS dashboard wireframes containing 30+ reusable atomic UI components."
         }
       ],
-      tasks: ["Configure nested auto layout headers.", "Set up a typography hierarchy scale.", "Generate custom accessible color swatches."],
-      commonMistakes: ["Ignoring grids, creating inconsistent alignments.", "Not using Figma components, causing massive duplicate edit tasks."],
+      tasks: ["Configure nested auto layout headers.", "Set up a typography hierarchy scale."],
+      commonMistakes: ["Ignoring grids, creating inconsistent alignments."],
       outcome: "Ability to build clean, maintainable UI files in Figma that developers can easily translate to code.",
       resources: [{ title: "Figma UI/UX Masterclass", platform: "Udemy", difficulty: "Beginner", duration: "24 Hours", rating: 4.8, url: "https://udemy.com" }]
     }
   ],
   interviewTopics: [
-    { category: "Technical", question: "What is the difference between UI and UX design?", hints: ["Visuals vs Flow", "Aesthetics vs Usability"], expectedAnswer: "UI (User Interface) focuses on the visual touchpoints of the product (colors, typography, spacing, styling). UX (User Experience) focuses on the system structure, user flows, accessibility, research, and general product usability.", difficulty: "Easy" }
+    { category: "Technical", question: "What is the difference between UI and UX design?", hints: ["Visuals vs Flow", "Aesthetics vs Usability"], expectedAnswer: "UI (User Interface) focuses on the visual touchpoints of the product. UX (User Experience) focuses on the system structure, user flows, accessibility, and general product usability.", difficulty: "Easy" }
   ],
-  resumeTips: ["List Figma, Prototyping, Wireframing, User Research, and Design System experience.", "Provide links to clean online design portfolios (Behance, Dribbble, custom site)."],
-  portfolioSuggestions: ["Detailed case studies describing research, wireframing, and final iterations.", "Design library sets displaying atomic component setups."],
+  resumeTips: ["List Figma, Prototyping, Wireframing, User Research, and Design System experience."],
+  portfolioSuggestions: ["Detailed case studies describing research, wireframing, and final iterations."],
   keywords: ["Figma", "UX Research", "Wireframing", "Prototyping", "Design Systems", "Auto Layout", "Visual Design"]
 });
 
@@ -805,17 +783,17 @@ const getProductManagerRoadmap = (career: string): RoadmapData => ({
           resumeImpact: "Authored comprehensive PRDs coordinating 10-person developer teams, aligning product milestones with core business goals."
         }
       ],
-      tasks: ["Write 5 detailed user stories with clear acceptance criteria.", "Prioritize a backlog of 20 items using the RICE framework.", "Analyze product launch telemetry data for user retention leaks."],
-      commonMistakes: ["Writing vague requirements that cause developer confusion.", "Focusing on shipping features rather than solving user problems."],
+      tasks: ["Write 5 detailed user stories with clear acceptance criteria.", "Prioritize a backlog of 20 items using the RICE framework."],
+      commonMistakes: ["Writing vague requirements that cause developer confusion."],
       outcome: "Ability to coordinate sprint backlogs and write development instructions.",
       resources: [{ title: "Brand Product Management Course", platform: "Coursera", difficulty: "Beginner", duration: "20 Hours", rating: 4.8, url: "https://coursera.org" }]
     }
   ],
   interviewTopics: [
-    { category: "Behavioral", question: "How do you handle disagreements between engineering teams and product roadmap priorities?", hints: ["Empathy", "Data-driven alignment", "Tradeoffs"], expectedAnswer: "I facilitate open discussions. First, I understand developer concerns (technical debt, complexity). Then, I present clear business impact metrics (revenue, retention data) to align tradeoffs and find compromise paths.", difficulty: "Medium" }
+    { category: "Behavioral", question: "How do you handle disagreements between engineering teams and product roadmap priorities?", hints: ["Empathy", "Data-driven alignment", "Tradeoffs"], expectedAnswer: "I facilitate open discussions. First, I understand developer concerns. Then, I present clear business impact metrics to align tradeoffs.", difficulty: "Medium" }
   ],
-  resumeTips: ["List Jira, Agile/Scrum, RICE Framework, SQL, and PRD writing.", "Highlight product launch metrics: e.g., 'Grew active users by 35% within 3 months'."],
-  portfolioSuggestions: ["Example PRDs and user story layouts published as case studies.", "Detailed retrospective writeups of digital product launches."],
+  resumeTips: ["List Jira, Agile/Scrum, RICE Framework, SQL, and PRD writing."],
+  portfolioSuggestions: ["Example PRDs and user story layouts published as case studies."],
   keywords: ["Product Strategy", "Jira", "Agile", "Scrum", "PRD", "RICE Prioritization", "Product Analytics"]
 });
 
@@ -844,16 +822,16 @@ const getGeneralRoadmap = (career: string): RoadmapData => ({
           resumeImpact: "Implemented visual algorithm demonstrators, helping study partners comprehend time-complexity steps."
         }
       ],
-      tasks: ["Solve 15 basic LeetCode array operations.", "Measure execution durations of linear vs binary search operations.", "Implement a binary search tree structure with traversal routines."],
-      commonMistakes: ["Failing to calculate memory spatial requirements.", "Neglecting edge cases (null inputs, empty values)."],
+      tasks: ["Solve 15 basic LeetCode array operations.", "Measure execution durations of linear vs binary search operations."],
+      commonMistakes: ["Failing to calculate memory spatial requirements."],
       outcome: "Ability to write efficient code and determine processing time constraints.",
       resources: [{ title: "Algorithms Specialization", platform: "Coursera", difficulty: "Intermediate", duration: "48 Hours", rating: 4.8, url: "https://coursera.org" }]
     }
   ],
   interviewTopics: [
-    { category: "Technical", question: "What is the time complexity of searching inside a Hash Table vs a Binary Search Tree?", hints: ["Average vs Worst case", "Direct index hashing"], expectedAnswer: "Searching in a Hash Table is on average O(1) time due to direct index hashes. Searching a balanced Binary Search Tree is O(log n) time because each node lookup splits the search space in half.", difficulty: "Medium" }
+    { category: "Technical", question: "What is the time complexity of searching inside a Hash Table vs a Binary Search Tree?", hints: ["Average vs Worst case", "Direct index hashing"], expectedAnswer: "Searching in a Hash Table is on average O(1) time due to direct index hashes. Searching a balanced Binary Search Tree is O(log n) time.", difficulty: "Medium" }
   ],
-  resumeTips: ["List algorithms, core coding languages (Python/TypeScript/Java), databases, and version control.", "Focus on computational optimizations achieved."],
-  portfolioSuggestions: ["Git repositories hosting clean, commented algorithms solutions.", "Contributions to local open source utilities."],
+  resumeTips: ["List algorithms, core coding languages, databases, and version control."],
+  portfolioSuggestions: ["Git repositories hosting clean, commented algorithms solutions."],
   keywords: ["Algorithms", "Data Structures", "Big-O", "Git", "System Design", "Databases"]
 });
