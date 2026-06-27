@@ -115,6 +115,26 @@ Here is your customized **Nova AI Action Plan** for today:
 3. **Evening (Project)**: Write 20-30 lines of code for your recommended portfolio projects.
 
 Let's maintain your learning streak! What module would you like to debug first?`;
+  } else if (lowercasePrompt.includes('project') || lowercasePrompt.includes('portfolio') || lowercasePrompt.includes('build')) {
+    if (context.career.toLowerCase().includes('game') || context.career.toLowerCase().includes('unity')) {
+      responseText = `I'd love to suggest a portfolio project! Since you're studying **Game Development**, you should build:
+
+### 🎮 "NovaRealm" - 3D Physics Stealth Game
+* **Stack**: Unity Engine, C# Scripting, NavMesh AI.
+* **Objective**: Design guard NPCs that patrol waypoints, verify player line-of-sight using raycasting, and chase when alert.
+* **Resume Tip**: Focus on vector mathematics, Rigidbody physics force mechanics, and NavMesh bakes.
+
+Mastering this will boost your Resume ATS score significantly!`;
+    } else {
+      responseText = `I'd love to suggest a portfolio project! Since you're studying **${context.career}**, you should build:
+
+### ⚡ "Metrics Dashboard Platform"
+* **Stack**: React, TypeScript, TailwindCSS.
+* **Objective**: Build a responsive dashboard connecting to mock APIs with interactive charts, dark mode, and state checks.
+* **Resume Tip**: Focus on type-safe generic interfaces, custom hook designs, and DOM rendering.
+
+Mastering this will boost your Resume ATS score significantly!`;
+    }
   } else {
     responseText = `Hello! I'm Nova AI, your Career Copilot. I see you're pursuing a **${context.career || 'career goal'}**. 
 
