@@ -136,6 +136,24 @@ Mastering this will boost your Resume ATS score significantly!`;
 
 Mastering this will boost your Resume ATS score significantly!`;
     }
+  } else if (lowercasePrompt.includes('start') || lowercasePrompt.includes('become') || lowercasePrompt.includes('career') || lowercasePrompt.includes('roadmap')) {
+    if (context.career.toLowerCase().includes('ai') || context.career.toLowerCase().includes('machine')) {
+      responseText = `To start your journey as an **AI Engineer**, I suggest focusing on these core pillars:
+
+1. **Mathematical Foundations**: Master Linear Algebra, Calculus, and Probability/Statistics.
+2. **Programming Core**: Learn Python, NumPy, Pandas, and data manipulation.
+3. **Machine Learning Frameworks**: Dive into PyTorch or TensorFlow, learning standard model architectures.
+4. **LLMs & Generics**: Build projects utilizing RAG (Retrieval-Augmented Generation), vector databases, and agent networks.
+
+Let's start with your first roadmap milestone! I can help you select a certification or write basic PyTorch code. What would you like to review first?`;
+    } else {
+      responseText = `To start your journey in **${context.career || 'Software Engineering'}**, I suggest these steps:
+1. **Foundations**: Learn the syntax of your primary language (e.g. JavaScript, C#, Python).
+2. **Basic Projects**: Build 3 simple projects to understand logic and state management.
+3. **Algorithms**: Understand data structures (Arrays, Lists, Hash maps) and Big-O computational time.
+
+Let me know what step you are currently on, and I'll lay out your study plan!`;
+    }
   } else {
     responseText = `Hello! I'm Nova AI, your Career Copilot. I see you're pursuing a **${context.career || 'career goal'}**. 
 
