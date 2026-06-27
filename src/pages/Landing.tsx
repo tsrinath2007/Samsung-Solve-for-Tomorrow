@@ -104,13 +104,11 @@ export const Landing: React.FC = () => {
     return () => clearInterval(interval);
   }, [isGenerating]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim()) return;
-    const success = await generateRoadmap(inputValue);
-    if (success) {
-      navigate('/roadmap');
-    }
+    generateRoadmap(inputValue);
+    navigate('/roadmap');
   };
 
   const handleExampleClick = (example: string) => {

@@ -271,6 +271,8 @@ export const generateAIRoadmap = async (career: string, apiKey?: string): Promis
     return getUIUXRoadmap(career);
   } else if (matchRole(role, ['product', 'project', 'manager', 'agile'])) {
     return getProductManagerRoadmap(career);
+  } else if (matchRole(role, ['game', 'unity', 'unreal', 'c#', 'c++', 'shader'])) {
+    return getGameDeveloperRoadmap(career);
   }
 
   return getGeneralRoadmap(career);
@@ -835,3 +837,148 @@ const getGeneralRoadmap = (career: string): RoadmapData => ({
   portfolioSuggestions: ["Git repositories hosting clean, commented algorithms solutions."],
   keywords: ["Algorithms", "Data Structures", "Big-O", "Git", "System Design", "Databases"]
 });
+
+const getGameDeveloperRoadmap = (career: string): RoadmapData => ({
+  career: career || "Game Developer",
+  description: "Specializes in building interactive 2D and 3D games, programming engine logic, shader structures, physics components, and user interfaces.",
+  difficulty: "Advanced",
+  expectedSalary: { entry: "$70,000", mid: "$105,000", senior: "$155,000", average: "$110,000" },
+  duration: "6 Months",
+  jobGrowth: "+21% (High demand in AAA and Indie spaces)",
+  industryOutlook: "Strong outlook with the expansion of immersive gaming engines, metaverse graphics, and mobile game releases.",
+  milestones: [
+    {
+      id: "gd_m1",
+      title: "Programming Fundamentals & C#",
+      description: "Learn C# foundations, variables, loops, arrays, OOP, classes, inheritance, and generic structures.",
+      duration: "4 Weeks",
+      skills: ["C# OOP", "Variables & Control Flow", "Collections & Generics", "Classes & Inheritance"],
+      projects: [
+        {
+          title: "Console Text Adventure Game",
+          description: "Build a text-based RPG in console using core OOP principles and saving states.",
+          skillsUsed: ["C# OOP", "System.IO", "Text Parsing"],
+          difficulty: "Beginner",
+          timeEst: "1 Week",
+          resumeImpact: "Designed a clean C# codebase demonstrating SOLID principles and generic state managers."
+        }
+      ],
+      tasks: ["Write 5 class definitions inheriting from a base Actor class.", "Configure a simple text inventory list."],
+      commonMistakes: ["Using global variables instead of encapsulating class states."],
+      outcome: "Ability to write clean, modular object-oriented C# code.",
+      resources: [{ title: "C# Beginner Tutorial", platform: "YouTube", difficulty: "Beginner", duration: "8 Hours", rating: 4.8, url: "https://youtube.com" }]
+    },
+    {
+      id: "gd_m2",
+      title: "Unity Engine Core Layouts",
+      description: "Master Unity interface, GameObjects, Prefabs, transforms, script bindings, and basic game loops.",
+      duration: "6 Weeks",
+      skills: ["Unity Editor", "GameObjects & Components", "Transforms & Vector Math", "Prefabs & Spawning"],
+      projects: [
+        {
+          title: "2D Endless Runner Sandbox",
+          description: "Develop a 2D side-scroller game with parallax scrolling backgrounds and spawning obstacles.",
+          skillsUsed: ["Unity Editor", "C# scripting", "2D Transforms"],
+          difficulty: "Beginner",
+          timeEst: "2 Weeks",
+          resumeImpact: "Created a complete 2D side-scrolling runner, optimising sprite asset sheets and parallax layers."
+        }
+      ],
+      tasks: ["Import a custom sprite asset sheet and slice it.", "Create a spawner prefab script to generate obstacles."],
+      commonMistakes: ["Failing to reuse spawned assets, leading to memory leaks."],
+      outcome: "Complete comfort managing scenes, gameobjects, and transforms in Unity.",
+      resources: [{ title: "Unity Essentials", platform: "YouTube", difficulty: "Beginner", duration: "12 Hours", rating: 4.9, url: "https://unity.com/learn" }]
+    },
+    {
+      id: "gd_m3",
+      title: "Game Physics & Colliders",
+      description: "Master Rigidbody components, colliders, trigger events, gravity vectors, forces, and raycasting.",
+      duration: "5 Weeks",
+      skills: ["Rigidbody Physics", "Trigger & Collision Events", "Forces & Torques", "Raycasting"],
+      projects: [
+        {
+          title: "3D Physics Roller Game",
+          description: "Create a 3D marble roller using forces, gravity manipulation, and raycasted ground checks.",
+          skillsUsed: ["3D Physics", "Raycasting", "Inputs Manager"],
+          difficulty: "Intermediate",
+          timeEst: "2 Weeks",
+          resumeImpact: "Developed precise physics controllers utilizing trigger layers and forces instead of hardcoded transforms."
+        }
+      ],
+      tasks: ["Configure a raycast ground check to verify jump viability.", "Apply impulse forces to trigger jump events on collision."],
+      commonMistakes: ["Moving physics objects via Transform.Translate instead of AddForce."],
+      outcome: "Ability to design immersive, responsive physical game interactions.",
+      resources: [{ title: "Unity Physics Basics", platform: "Udemy", difficulty: "Intermediate", duration: "6 Hours", rating: 4.7, url: "https://udemy.com" }]
+    },
+    {
+      id: "gd_m4",
+      title: "Game Animation & Shaders",
+      description: "Learn Animator controllers, state machines, animation parameters, blend trees, and custom shader graphs.",
+      duration: "4 Weeks",
+      skills: ["Animator State Machines", "Blend Trees", "Animation Blending", "Shader Graph Basics"],
+      projects: [
+        {
+          title: "Character Walk/Run Blending",
+          description: "Set up a 3D avatar with seamless walk-to-run transitions and custom dissolve shaders.",
+          skillsUsed: ["Animator States", "Blend Trees", "Shader Graph"],
+          difficulty: "Intermediate",
+          timeEst: "2 Weeks",
+          resumeImpact: "Configured animation blend trees based on input velocities, producing fluid transition motions."
+        }
+      ],
+      tasks: ["Configure a float parameter to blend between walking and sprinting animations.", "Create a custom glowing dissolve shader graph."],
+      commonMistakes: ["Neglecting transition exit times, creating jerky, snap motions."],
+      outcome: "Mastery over player animations and graphic visual shader overlays.",
+      resources: [{ title: "Unity Animation Deep Dive", platform: "YouTube", difficulty: "Intermediate", duration: "5 Hours", rating: 4.8, url: "https://youtube.com" }]
+    },
+    {
+      id: "gd_m5",
+      title: "AI NPC & Pathfinding",
+      description: "Configure Navigation Meshes (NavMesh), agents, obstacle avoidance, state machines, and behaviour trees.",
+      duration: "5 Weeks",
+      skills: ["NavMesh & NavMeshAgent", "AI Pathfinding", "Finite State Machines", "Behaviour Trees"],
+      projects: [
+        {
+          title: "Stealth AI Guard Simulator",
+          description: "Build an AI guard that patrols a set route, pursues players on sight, and returns to route when lost.",
+          skillsUsed: ["NavMesh", "Raycasts", "State Machines"],
+          difficulty: "Advanced",
+          timeEst: "2.5 Weeks",
+          resumeImpact: "Programmed robust state-driven stealth guards utilizing field-of-view raycasting and NavMesh pathfinding."
+        }
+      ],
+      tasks: ["Bake a navigation mesh map and set up NavMeshAgent targets.", "Implement patrol, chase, and inspect states in a guard FSM."],
+      commonMistakes: ["Recalculating NavMesh paths every frame, which heavily impacts frame rates."],
+      outcome: "Ability to program responsive, smart NPC behaviors and paths.",
+      resources: [{ title: "AI in Unity Course", platform: "Coursera", difficulty: "Advanced", duration: "16 Hours", rating: 4.8, url: "https://coursera.org" }]
+    },
+    {
+      id: "gd_m6",
+      title: "Networking & Game Optimization",
+      description: "Learn multiplayer basics, RPCs, state synchronizations, frame rate profiling, and building/exporting game builds.",
+      duration: "6 Weeks",
+      skills: ["Multiplayer Basics", "RPC & State Sync", "Unity Profiler", "Build Exporting"],
+      projects: [
+        {
+          title: "Multiplayer Arena Lobby",
+          description: "Create a simple multiplayer lobby supporting room joins and networked character spawning.",
+          skillsUsed: ["Netcode for GameObjects", "RPCs", "Profiler Tools"],
+          difficulty: "Advanced",
+          timeEst: "3 Weeks",
+          resumeImpact: "Architected a multiplayer network lobby with state synchronizations, reducing latency footprint by 30%."
+        }
+      ],
+      tasks: ["Implement an RPC method to sync player damage across client screens.", "Profile draw calls and batch materials to optimize GPU rendering."],
+      commonMistakes: ["Syncing non-essential transform parameters, clogging packet networks."],
+      outcome: "Ready to deploy, compile, build, and distribute multiplayer projects.",
+      resources: [{ title: "Unity Multiplayer Development", platform: "Udemy", difficulty: "Advanced", duration: "18 Hours", rating: 4.9, url: "https://udemy.com" }]
+    }
+  ],
+  interviewTopics: [
+    { category: "Technical", question: "What is the difference between Update and FixedUpdate in game loops?", hints: ["Frame rate independent vs physics cycles", "Collision calculations"], expectedAnswer: "Update runs once per frame and is ideal for input and rendering. FixedUpdate runs at standard intervals (default 0.02s) and is used for physics and Rigidbody adjustments.", difficulty: "Medium" }
+  ],
+  resumeTips: ["List game engines, coding skills, vector mathematics, shaders, and hosting sites."],
+  portfolioSuggestions: ["Itch.io portfolio linking playable game projects and Git repos."],
+  keywords: ["Unity", "C#", "Vector Math", "Physics", "Shaders", "Multiplayer", "Profiler"]
+});
+
